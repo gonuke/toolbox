@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import yaml
 import subprocess
 import argparse
@@ -14,6 +15,8 @@ def cmd_line():
                         default="school_list.yml")
     parser.add_argument('-x', '--tex-only', help="Only generate TeX files and not PDFs",
                         default=False)
+    parser.add_argument('-o', '--only', help="Only perform actions for one institution")
+
 
     return parser.parse_args()
 
@@ -66,12 +69,14 @@ def process_template(template, school_data):
 
 def generate_tex_pdf(school_key, letter, tex_only):
 
-    filename = school_key + '_letter.tex'
-    with open(filename, "w") as letter_file:
+    filename = school_key + '_letter'
+    with open(filename + '.tex', "w") as letter_file:
         letter_file.write(letter)
 
     if not tex_only:
         subprocess.run(['pdflatex', filename])
+        for ext in ['.log', '.aux', '.out']:
+            os.remove(filename + ext)
 
 
 def main():
@@ -82,11 +87,14 @@ def main():
 
     template = load_template(options.template)
 
-    for school_key in data.keys():
-    
-        new_letter = process_template(template, data[school_key])
+    school_list = data.keys()
+    if options.only:
+        school_list = [options.only]
+    for school_key in school_list:
+        if not set(data[school_key].keys()).intersection({'completed','cancelled'}):
+            new_letter = process_template(template, data[school_key])
 
-        generate_tex_pdf(school_key, new_letter, options.tex_only)
+            generate_tex_pdf(school_key, new_letter, options.tex_only)
         
 
 if __name__ == "__main__":
